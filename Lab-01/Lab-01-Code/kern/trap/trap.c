@@ -114,10 +114,9 @@ void interrupt_handler(struct trapframe *tf) {
             */
             clock_set_next_event(); // 设置下次时钟中断
             ticks++; // 计数器加一
-            if (ticks == TICK_NUM) { // 当计数器加到100的时候
+            if (ticks % TICK_NUM == 0) { // 每当计数器加到100的时候
                 print_ticks(); // 我们会输出一个`100ticks`表示我们触发了100次时钟中断
                 num++; // 同时打印次数（num）加一
-                ticks = 0; // 计数器清零
                 if (num == 10) { // 判断打印次数，当打印次数为10时
                     sbi_shutdown(); // 调用<sbi.h>中的关机函数sbi_shutdown()关机
                 }
