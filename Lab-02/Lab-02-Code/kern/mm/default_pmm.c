@@ -15,10 +15,10 @@
  * (1) Prepare: In order to implement the First-Fit Mem Alloc (FFMA), we should manage the free mem block use some list.
  *              The struct free_area_t is used for the management of free mem blocks. At first you should
  *              be familiar to the struct list in list.h. struct list is a simple doubly linked list implementation.
- *              You should know howto USE: list_init, list_add(list_add_after), list_add_before, list_del, list_next, list_prev
+ *              You should know how to USE: list_init, list_add(list_add_after), list_add_before, list_del, list_next, list_prev
  *              Another tricky method is to transform a general list struct to a special struct (such as struct page):
  *              you can find some MACRO: le2page (in memlayout.h), (in future labs: le2vma (in vmm.h), le2proc (in proc.h),etc.)
- * (2) default_init: you can reuse the  demo default_init fun to init the free_list and set nr_free to 0.
+ * (2) default_init: you can reuse the demo default_init fun to init the free_list and set nr_free to 0.
  *              free_list is used to record the free mem blocks. nr_free is the total number for free mem blocks.
  * (3) default_init_memmap:  CALL GRAPH: kern_init --> pmm_init-->page_init-->init_memmap--> pmm_manager->init_memmap
  *              This fun is used to init a free block (with parameter: addr_base, page_number).
@@ -39,7 +39,7 @@
  *                 (4.1.1) In while loop, get the struct page and check the p->property (record the num of free block) >=n?
  *                       struct Page *p = le2page(le, page_link);
  *                       if(p->property >= n){ ...
- *                 (4.1.2) If we find this p, then it' means we find a free block(block size >=n), and the first n pages can be malloced.
+ *                 (4.1.2) If we find this p, then it means we find a free block(block size >=n), and the first n pages can be malloced.
  *                     Some flag bits of this page should be setted: PG_reserved =1, PG_property =0
  *                     unlink the pages from free_list
  *                     (4.1.2.1) If (p->property >n), we should re-caluclate number of the the rest of this free block,

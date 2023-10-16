@@ -19,6 +19,7 @@ static inline void __intr_restore(bool flag) {
     }
 }
 
+// 这里的 do{}while(0) 的作用是将宏展开后的代码作为一个语句使用，从而避免在使用宏时出现语法错误
 #define local_intr_save(x) \
     do {                   \
         x = __intr_save(); \

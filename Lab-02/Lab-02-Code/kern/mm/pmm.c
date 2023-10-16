@@ -1,5 +1,6 @@
 #include <default_pmm.h>
 #include <best_fit_pmm.h>
+#include <buddy_pmm.h> // Buddy System
 #include <defs.h>
 #include <error.h>
 #include <memlayout.h>
@@ -34,7 +35,8 @@ static void check_alloc_page(void);
 
 // init_pmm_manager - initialize a pmm_manager instance
 static void init_pmm_manager(void) {
-    pmm_manager = &best_fit_pmm_manager;
+    pmm_manager = &best_fit_pmm_manager; // 修改此处：测试 Best-Fit 算法
+    // pmm_manager = &buddy_pmm_manager; // 修改此处：测试 Buddy System 算法
     cprintf("memory management: %s\n", pmm_manager->name);
     pmm_manager->init();
 }
@@ -93,6 +95,7 @@ static void page_init(void) {
 
     uint64_t maxpa = mem_end;
 
+    // 这里貌似有点问题，虚拟地址与物理地址应该需要转换
     if (maxpa > KERNTOP) {
         maxpa = KERNTOP;
     }

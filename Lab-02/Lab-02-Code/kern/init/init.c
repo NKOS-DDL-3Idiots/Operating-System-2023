@@ -28,7 +28,8 @@ int kern_init(void) {
 
     pmm_init();  // init physical memory management
 
-    idt_init();  // init interrupt descriptor table
+    // 感觉该行可以删除
+    // idt_init();  // init interrupt descriptor table
 
     clock_init();   // init clock interrupt
     intr_enable();  // enable irq interrupt
