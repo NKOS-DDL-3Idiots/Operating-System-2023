@@ -326,7 +326,21 @@ best_fit_free_pages(struct Page *base, size_t n) {
 
 * 参考[伙伴分配器的一个极简实现](http://coolshell.cn/articles/10427.html)， 在ucore中实现buddy system分配算法，要求有比较充分的测试用例说明实现的正确性，需要有设计文档。
 
-见源码。
+### 源代码：
+
+详细请参考见源码 `Lab-02/Lab-02-Code/kern/mm/buddy_pmm.c` 和 `Lab-02/Lab-02-Code/kern/mm/buddy_pmm.h`。
+
+### 测试 Buddy System
+
+对该 Buddy System 的测试在源码中的 `Lab-02/Lab-02-Code/kern/mm/buddy_pmm.c` 中的 `buddy_check` 函数中，在该函数中通过一系列的断言（assert）来检测内存分配和回收正确与否。若断言均成立，则 ucore 会正常执行，输出 `check_alloc_page() succeeded!`，即表明 Buddy System 内存分配算法的正确性。
+
+在 `Lab-02/Lab-02-Code/kern/mm/pmm.c` 中的 `init_pmm_manager` 函数中，将 `pmm_manager` 初始化为 `buddy_pmm_manager` （对应语句 `pmm_manager = &buddy_pmm_manager;` ），即可对 Buddy System 进行简单测试。
+
+运行 `make qemu` 后，出现如下结果：
+
+![Buddy System 测试结果](fig/Buddy_Test.jpg)
+
+红框中的内容表明，Buddy System 内存分配算法的实现基本正确！
 
 ## **扩展练习Challenge** **2** **：任意大小的内存单元slub分配算法（需要编程）**
 
