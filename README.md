@@ -12,8 +12,25 @@ Lab01 mainly covers Interrupts and Exceptions.
 
 ## Lab-02
 
-Lab02 mainly covers the physical memory management, virtual memory management and the page table.
+Lab02 mainly covers the physical memory management and the page table.
+
+- Page table structure
+- Page table management
+- Page Allocation and Free
+  - First fit
+  - Best fit
+  - Buddy system
 
 ## Lab-03
 
-Lab03 ...
+Lab03 mainly covers the virtual memory management, page fault handling, and page replacement algorithm.
+
+- Page fault handling
+- Page replacement algorithm
+  - FIFO
+  - Clock
+  - LRU
+
+## Lab-04
+
+Lab04 ...
