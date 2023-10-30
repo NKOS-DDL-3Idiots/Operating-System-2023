@@ -42,36 +42,35 @@ get_pte()函数中有两段形式类似的代码
 这两段代码分别是：
 
 ```C
-      pde_t *pdep1 = &pgdir[PDX1(la)];//找到对应的Giga Page
-      if (!(*pdep1 & PTE_V)) {//如果下一级页表不存在，那就给它分配一页，创造新页表
-          struct Page *page;
-          if (!create || (page = alloc_page()) == NULL) {
-              return NULL;
-          }
-          set_page_ref(page, 1);
-          uintptr_t pa = page2pa(page);
-          memset(KADDR(pa), 0, PGSIZE);
-          // 我们现在在虚拟地址空间中，所以要转化为 KADDR 再 memset。
-          // 不管页表怎么构造，我们确保物理地址和虚拟地址的偏移量始终相同，
-          // 那么就可以用这种方式完成对物理内存的访问。
-          *pdep1 = pte_create(page2ppn(page), PTE_U | PTE_V);//注意这里 R,W,X 全零
-      }
+pde_t *pdep1 = &pgdir[PDX1(la)];//找到对应的Giga Page
+if (!(*pdep1 & PTE_V)) {//如果下一级页表不存在，那就给它分配一页，创造新页表
+    struct Page *page;
+    if (!create || (page = alloc_page()) == NULL) {
+        return NULL;
+    }
+    set_page_ref(page, 1);
+    uintptr_t pa = page2pa(page);
+    memset(KADDR(pa), 0, PGSIZE);
+    // 我们现在在虚拟地址空间中，所以要转化为 KADDR 再 memset。
+    // 不管页表怎么构造，我们确保物理地址和虚拟地址的偏移量始终相同，
+    // 那么就可以用这种方式完成对物理内存的访问。
+    *pdep1 = pte_create(page2ppn(page), PTE_U | PTE_V);//注意这里 R,W,X 全零
+}
 ```
 
 ```C
-      pde_t *pdep0 = &((pde_t *)KADDR(PDE_ADDR(*pdep1)))[PDX0(la)];//再下一级页表
-      // 这里的逻辑和前面完全一致，页表不存在就现在分配一个
-      if (!(*pdep0 & PTE_V)) {
-          struct Page *page;
-          if (!create || (page = alloc_page()) == NULL) {
-                  return NULL;
-          }
-          set_page_ref(page, 1);
-          uintptr_t pa = page2pa(page);
-          memset(KADDR(pa), 0, PGSIZE);
-          *pdep0 = pte_create(page2ppn(page), PTE_U | PTE_V);
-      }
-     
+pde_t *pdep0 = &((pde_t *)KADDR(PDE_ADDR(*pdep1)))[PDX0(la)];//再下一级页表
+// 这里的逻辑和前面完全一致，页表不存在就现在分配一个
+if (!(*pdep0 & PTE_V)) {
+    struct Page *page;
+    if (!create || (page = alloc_page()) == NULL) {
+            return NULL;
+    }
+    set_page_ref(page, 1);
+    uintptr_t pa = page2pa(page);
+    memset(KADDR(pa), 0, PGSIZE);
+    *pdep0 = pte_create(page2ppn(page), PTE_U | PTE_V);
+}
 ```
 
 - 这两段代码的功能都是在页表中查找或创建一个表项（pte或pde），如果该表项不存在，则分配一个新的物理页，并将其地址和权限位写入该表项。这两段代码的**区别在于查找或创建的表项的级别不同**，第一段是二级页表项（pte），第二段是一级页表项（pde）。其中包含的逻辑都是一样的，所以相似。
