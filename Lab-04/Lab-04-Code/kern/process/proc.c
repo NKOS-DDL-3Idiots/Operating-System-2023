@@ -103,6 +103,7 @@ alloc_proc(void) {
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
         // memset(proc, 0, sizeof(struct proc_struct));
+   
         proc->state = PROC_UNINIT;
         proc->pid = -1;
         proc->runs = 0;
@@ -115,6 +116,37 @@ alloc_proc(void) {
         proc->cr3 = boot_cr3;
         proc->flags = 0;
         memset(proc->name, 0, sizeof(proc->name));
+
+        /*
+
+        //LAB4: 2110608
+        /*
+     * below fields in proc_struct need to be initialized
+     *       enum proc_state state;                      // Process state
+     *       int pid;                                    // Process ID
+     *       int runs;                                   // the running times of Proces
+     *       uintptr_t kstack;                           // Process kernel stack
+     *       volatile bool need_resched;                 // bool value: need to be rescheduled to release CPU?
+     *       struct proc_struct *parent;                 // the parent process
+     *       struct mm_struct *mm;                       // Process's memory management field
+     *       struct context context;                     // Switch here to run process
+     *       struct trapframe *tf;                       // Trap frame for current interrupt
+     *       uintptr_t cr3;                              // CR3 register: the base addr of Page Directroy Table(PDT)
+     *       uint32_t flags;                             // Process flag
+     *       char name[PROC_NAME_LEN + 1];               // Process name
+        proc->state = PROC_UNINIT;
+        proc->pid = -1;
+        proc->runs = 0;
+        proc->kstack = NULL;
+        proc->need_resched = 0;
+        proc->parent = NULL;
+        proc->mm = NULL;
+        memset(&(proc->context), 0, sizeof(struct context));
+        proc->tf = NULL;
+        proc->cr3 = boot_cr3;
+        proc->flags = 0;
+        memset(proc->name, 0, PROC_NAME_LEN);
+*/
     }
     return proc;
 }
@@ -201,6 +233,27 @@ proc_run(struct proc_struct *proc) {
 
         // 5. enable interrupt
         local_intr_restore(intr_flag);
+
+
+
+        // LAB4: 2110608
+        /*
+        * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
+        * MACROs or Functions:
+        *   local_intr_save():        Disable interrupts
+        *   local_intr_restore():     Enable Interrupts
+        *   lcr3():                   Modify the value of CR3 register
+        *   switch_to():              Context switching between two processes
+        
+        bool intr_flag;
+        struct proc_struct *prev = current;
+        struct proc_struct *next = proc;
+        local_intr_save(intr_flag);
+        current = proc;
+        lcr3(next->cr3);
+        switch_to(&(prev->context), &(next->context));
+        local_intr_restore(intr_flag);
+        */
     }
 }
 
@@ -367,7 +420,57 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
 
     // cprintf("do_fork: pid = %d, name = \"%s\".\n", proc->pid, get_proc_name(proc));
 
+    //LAB4: 2110608
+    /*
+     * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
+     * MACROs or Functions:
+     *   alloc_proc:   create a proc struct and init fields (lab4:exercise1)
+     *   setup_kstack: alloc pages with size KSTACKPAGE as process kernel stack
+     *   copy_mm:      process "proc" duplicate OR share process "current"'s mm according clone_flags
+     *                 if clone_flags & CLONE_VM, then "share" ; else "duplicate"
+     *   copy_thread:  setup the trapframe on the  process's kernel stack top and
+     *                 setup the kernel entry point and stack of process
+     *   hash_proc:    add proc into proc hash_list
+     *   get_pid:      alloc a unique pid for process
+     *   wakeup_proc:  set proc->state = PROC_RUNNABLE
+     * VARIABLES:
+     *   proc_list:    the process set's list
+     *   nr_process:   the number of process set
+
+    proc = alloc_proc();
+   
+    if (proc == NULL)
+        goto fork_out;
     
+    if (setup_kstack(proc) == -E_NO_MEM)
+        goto bad_fork_cleanup_proc;
+
+    if (copy_mm(clone_flags, proc) != 0)
+        goto bad_fork_cleanup_kstack;
+    
+    proc->parent = current;
+
+    copy_thread(proc, stack, tf);
+    //这里要避免打断，禁止中断
+    bool intr_flag;
+    local_intr_save(intr_flag);
+
+    proc->pid = get_pid();
+    hash_proc(proc);
+    list_add(&proc_list, &(proc->list_link));
+    nr_process ++;
+    //恢复
+    local_intr_restore(intr_flag);
+
+    wakeup_proc(proc);
+
+    ret = proc->pid;
+
+     */
+
+
+
+
 fork_out:
     return ret;
 
