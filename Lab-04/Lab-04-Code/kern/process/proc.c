@@ -186,16 +186,21 @@ proc_run(struct proc_struct *proc) {
         // 1. disable interrupt
         bool intr_flag;
         local_intr_save(intr_flag);
-        // 2. set proc->cr3 as CR3 register
-        lcr3(proc->cr3);
-        // 3. call switch_to function to switch to process proc
-        switch_to(&(current->context), &(proc->context));
-        // 4. enable interrupt
-        local_intr_restore(intr_flag);
-        // 5. set current = proc
+
+        // 2. update current
+        struct proc_struct *prev = current;
         current = proc;
-        // 6. reset proc->need_resched as 0
         proc->need_resched = 0;
+
+        // 3. set proc->cr3 as CR3 register
+        lcr3(proc->cr3);
+
+        // 4. call switch_to function to switch to process proc
+        switch_to(&(prev->context), &(proc->context));
+        // process has been switched to proc
+
+        // 5. enable interrupt
+        local_intr_restore(intr_flag);
     }
 }
 
