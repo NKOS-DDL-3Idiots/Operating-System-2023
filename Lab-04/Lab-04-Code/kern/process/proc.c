@@ -65,7 +65,7 @@ list_entry_t proc_list;
 #define HASH_LIST_SIZE      (1 << HASH_SHIFT)
 #define pid_hashfn(x)       (hash32(x, HASH_SHIFT))
 
-// has list for process set based on pid
+// hash list for process set based on pid
 static list_entry_t hash_list[HASH_LIST_SIZE];
 
 // idle proc
@@ -86,7 +86,7 @@ static struct proc_struct *
 alloc_proc(void) {
     struct proc_struct *proc = kmalloc(sizeof(struct proc_struct));
     if (proc != NULL) {
-    //LAB4:EXERCISE1 YOUR CODE
+    //LAB4: 2112515
     /*
      * below fields in proc_struct need to be initialized
      *       enum proc_state state;                      // Process state
@@ -102,8 +102,19 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
-
-
+        // memset(proc, 0, sizeof(struct proc_struct));
+        proc->state = PROC_UNINIT;
+        proc->pid = -1;
+        proc->runs = 0;
+        proc->kstack = 0;
+        proc->need_resched = 0;
+        proc->parent = NULL;
+        proc->mm = NULL;
+        memset(&(proc->context), 0, sizeof(struct context));
+        proc->tf = NULL;
+        proc->cr3 = boot_cr3;
+        proc->flags = 0;
+        memset(proc->name, 0, sizeof(proc->name));
     }
     return proc;
 }
@@ -163,7 +174,7 @@ get_pid(void) {
 void
 proc_run(struct proc_struct *proc) {
     if (proc != current) {
-        // LAB4:EXERCISE3 YOUR CODE
+        // LAB4: 2112515
         /*
         * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
         * MACROs or Functions:
@@ -172,7 +183,19 @@ proc_run(struct proc_struct *proc) {
         *   lcr3():                   Modify the value of CR3 register
         *   switch_to():              Context switching between two processes
         */
-       
+        // 1. disable interrupt
+        bool intr_flag;
+        local_intr_save(intr_flag);
+        // 2. set proc->cr3 as CR3 register
+        lcr3(proc->cr3);
+        // 3. call switch_to function to switch to process proc
+        switch_to(&(current->context), &(proc->context));
+        // 4. enable interrupt
+        local_intr_restore(intr_flag);
+        // 5. set current = proc
+        current = proc;
+        // 6. reset proc->need_resched as 0
+        proc->need_resched = 0;
     }
 }
 
@@ -190,7 +213,7 @@ hash_proc(struct proc_struct *proc) {
     list_add(hash_list + pid_hashfn(proc->pid), &(proc->hash_link));
 }
 
-// find_proc - find proc frome proc hash_list according to pid
+// find_proc - find proc from proc hash_list according to pid
 struct proc_struct *
 find_proc(int pid) {
     if (0 < pid && pid < MAX_PID) {
@@ -273,7 +296,7 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
         goto fork_out;
     }
     ret = -E_NO_MEM;
-    //LAB4:EXERCISE2 YOUR CODE
+    //LAB4: 2112515
     /*
      * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
      * MACROs or Functions:
@@ -299,8 +322,47 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
     //    6. call wakeup_proc to make the new child process RUNNABLE
     //    7. set ret vaule using child proc's pid
 
+    // cprintf("do_fork: current->pid = %d, name = \"%s\".\n", current->pid, get_proc_name(current));
+    // call alloc_proc to allocate a proc_struct
+    proc = alloc_proc();
+    if (proc == NULL)
+        goto fork_out;
     
+    proc->parent = current;
 
+    // call setup_kstack to allocate a kernel stack for child process
+    if (setup_kstack(proc) != 0)
+        goto bad_fork_cleanup_kstack;
+    
+    // call copy_mm to dup OR share mm according clone_flag
+    if (copy_mm(clone_flags, proc) != 0)
+        goto bad_fork_cleanup_proc;
+    
+    // call copy_thread to setup tf & context in proc_struct
+    copy_thread(proc, stack, tf);
+
+    // disable interrupt
+    bool intr_flag;
+    local_intr_save(intr_flag);
+
+    // insert proc_struct into hash_list && proc_list
+    proc->pid = get_pid();
+    hash_proc(proc);
+    list_add(&proc_list, &(proc->list_link));
+    nr_process++;
+
+    // enable interrupt
+    local_intr_restore(intr_flag);
+
+    // call wakeup_proc to make the new child process RUNNABLE
+    wakeup_proc(proc);
+    
+    // set ret vaule using child proc's pid
+    ret = proc->pid;
+
+    // cprintf("do_fork: pid = %d, name = \"%s\".\n", proc->pid, get_proc_name(proc));
+
+    
 fork_out:
     return ret;
 
