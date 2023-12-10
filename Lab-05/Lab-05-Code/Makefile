@@ -275,6 +275,7 @@ print-%:
 clean:
 	$(V)$(RM) $(GRADE_GDB_IN) $(GRADE_QEMU_OUT) cscope* tags
 	-$(RM) -r $(OBJDIR) $(BINDIR)
+	-$(RM) -v .*.log
 
 dist-clean: clean
 	-$(RM) $(HANDIN)

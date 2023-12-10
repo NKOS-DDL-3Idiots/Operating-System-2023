@@ -1,5 +1,9 @@
 #include <riscv.h>
 
+# 若在中断之前处于 U mode(用户态)
+# 则 sscratch 保存的是内核栈地址
+# 否则中断之前处于 S mode(内核态)，sscratch 保存的是 0
+
     .altmacro
     .align 2
     .macro SAVE_ALL

@@ -87,7 +87,7 @@ static struct proc_struct *
 alloc_proc(void) {
     struct proc_struct *proc = kmalloc(sizeof(struct proc_struct));
     if (proc != NULL) {
-    //LAB4:EXERCISE1 YOUR CODE
+    // LAB4:EXERCISE1 YOUR CODE
     /*
      * below fields in proc_struct need to be initialized
      *       enum proc_state state;                      // Process state
@@ -104,12 +104,27 @@ alloc_proc(void) {
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
 
-     //LAB5 YOUR CODE : (update LAB4 steps)
-     /*
+    proc->state = PROC_UNINIT;  // 设置进程为未初始化状态
+    proc->pid = -1;             // 未初始化的的进程id为-1
+    proc->runs = 0;             // 初始化时间片
+    proc->kstack = 0;           // 内存栈的地址
+    proc->need_resched = 0;     // 不需要调度
+    proc->parent = NULL;        // 父节点设为空
+    proc->mm = NULL;            // 虚拟内存为空
+    memset(&(proc->context), 0, sizeof(struct context)); // 上下文的初始化
+    proc->tf = NULL;            // 中断帧指针置为空
+    proc->cr3 = boot_cr3;       // 页目录设为内核页目录表的基址
+    proc->flags = 0;            // 标志位
+    memset(proc->name, 0, PROC_NAME_LEN); // 进程名初始化为空
+
+    // LAB5 YOUR CODE : (update LAB4 steps)
+    /*
      * below fields(add in LAB5) in proc_struct need to be initialized  
      *       uint32_t wait_state;                        // waiting state
      *       struct proc_struct *cptr, *yptr, *optr;     // relations between processes
      */
+    proc->wait_state = 0;       // 等待状态
+    proc->cptr = proc->yptr = proc->optr = NULL; // 孩子、兄弟节点初始化为空
     }
     return proc;
 }
@@ -199,14 +214,31 @@ proc_run(struct proc_struct *proc) {
     if (proc != current) {
         // LAB4:EXERCISE3 YOUR CODE
         /*
-        * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
-        * MACROs or Functions:
-        *   local_intr_save():        Disable interrupts
-        *   local_intr_restore():     Enable Interrupts
-        *   lcr3():                   Modify the value of CR3 register
-        *   switch_to():              Context switching between two processes
-        */
+         * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
+         * MACROs or Functions:
+         *   local_intr_save():        Disable interrupts
+         *   local_intr_restore():     Enable Interrupts
+         *   lcr3():                   Modify the value of CR3 register
+         *   switch_to():              Context switching between two processes
+         */
+        // 1. disable interrupt
+        bool intr_flag;
+        local_intr_save(intr_flag);
 
+        // 2. update current
+        struct proc_struct *prev = current;
+        current = proc;
+        proc->need_resched = 0;
+
+        // 3. set proc->cr3 as CR3 register
+        lcr3(proc->cr3);
+
+        // 4. call switch_to function to switch to process proc
+        switch_to(&(prev->context), &(proc->context));
+        // process has been switched to proc
+
+        // 5. enable interrupt
+        local_intr_restore(intr_flag);
     }
 }
 
@@ -230,7 +262,7 @@ unhash_proc(struct proc_struct *proc) {
     list_del(&(proc->hash_link));
 }
 
-// find_proc - find proc frome proc hash_list according to pid
+// find_proc - find proc from proc hash_list according to pid
 struct proc_struct *
 find_proc(int pid) {
     if (0 < pid && pid < MAX_PID) {
@@ -395,14 +427,56 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
     //    6. call wakeup_proc to make the new child process RUNNABLE
     //    7. set ret vaule using child proc's pid
 
-    //LAB5 YOUR CODE : (update LAB4 steps)
-    //TIPS: you should modify your written code in lab4(step1 and step5), not add more code.
-   /* Some Functions
-    *    set_links:  set the relation links of process.  ALSO SEE: remove_links:  lean the relation links of process 
-    *    -------------------
-    *    update step 1: set child proc's parent to current process, make sure current process's wait_state is 0
-    *    update step 5: insert proc_struct into hash_list && proc_list, set the relation links of process
-    */
+    // call alloc_proc to allocate a proc_struct
+    proc = alloc_proc();
+    if (proc == NULL)
+        goto fork_out;
+    
+    proc->parent = current;
+    assert(current->wait_state == 0);
+
+    // call setup_kstack to allocate a kernel stack for child process
+    if (setup_kstack(proc) != 0)
+        goto bad_fork_cleanup_kstack;
+    
+    // call copy_mm to dup OR share mm according clone_flag
+    if (copy_mm(clone_flags, proc) != 0)
+        goto bad_fork_cleanup_proc;
+    
+    // call copy_thread to setup tf & context in proc_struct
+    copy_thread(proc, stack, tf);
+
+    // disable interrupt
+    bool intr_flag;
+    local_intr_save(intr_flag);
+
+    // insert proc_struct into hash_list && proc_list
+    proc->pid = get_pid();
+    hash_proc(proc);
+
+    // list_add(&proc_list, &(proc->list_link));
+    // nr_process++;
+
+    // 将原来的计数改成来执行set_links函数
+    set_links(proc);
+
+    // enable interrupt
+    local_intr_restore(intr_flag);
+
+    // call wakeup_proc to make the new child process RUNNABLE
+    wakeup_proc(proc);
+    
+    // set ret vaule using child proc's pid
+    ret = proc->pid;
+
+    // LAB5 YOUR CODE : (update LAB4 steps)
+    // TIPS: you should modify your written code in lab4(step1 and step5), not add more code.
+    /* Some Functions
+     *    set_links:  set the relation links of process.  ALSO SEE: remove_links:  lean the relation links of process 
+     *    -------------------
+     *    update step 1: set child proc's parent to current process, make sure current process's wait_state is 0
+     *    update step 5: insert proc_struct into hash_list && proc_list, set the relation links of process
+     */
  
 fork_out:
     return ret;
@@ -603,7 +677,14 @@ load_icode(unsigned char *binary, size_t size) {
      *          tf->status should be appropriate for user program (the value of sstatus)
      *          hint: check meaning of SPP, SPIE in SSTATUS, use them by SSTATUS_SPP, SSTATUS_SPIE(defined in risv.h)
      */
-
+    tf->gpr.sp = USTACKTOP;
+    tf->epc = elf->e_entry;
+    /*
+     * 用户模式(将SPP清0，SPIE位置1) 
+     * SPP为0：User SPP为1：Supervisor
+     * * SPIE置1，启用用户中断
+     */
+    tf->status = (sstatus & ~SSTATUS_SPP) | SSTATUS_SPIE;
 
     ret = 0;
 out:
