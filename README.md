@@ -1,5 +1,8 @@
 # Operating-System-2023
 
+[![README](https://img.shields.io/badge/README-English-blue)](./README.md)
+[![README-zh](https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-red)](./README-zh.md)
+
 This repository contains the laboratory assignments for the Operating System course at Nankai University in 2023. The group members are Tongxi Wu, Yafei Hu, and Qipeng Wang.
 
 ## Lab-01
