@@ -39,7 +39,7 @@ int serial_proc_data(void) {
         return -1;
     }
     if (c == 127) {
-        c = '\b';
+        c = '\b'; // 退格字符
     }
     return c;
 }
